@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Xml;
 using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.Threading;
@@ -22,6 +23,19 @@ namespace Socks5_Proxy
         //port to listen for connections on
         static int port = 1080;
 
+        //ip to listen for connections on
+        static string listen_ip = "*";
+
+        //the greater the throttle the slower the data
+        static int throttle = 0;
+
+        //amount of time a socket is allowed to be idle
+        //100 = roughly 10 seconds of idle time.
+        static int max_idle = 100;
+
+        //maximum amount of threads that are allowed
+        static int max_threads = 100;
+
         //host_deny_filter is a regex value that will cause a conenction to be declined when
         //matched against a given domain name. by default example.com is banned as an example
         static Regex host_deny_filter = new Regex(@"^(www\.)?example.com:80$", RegexOptions.IgnoreCase);
@@ -38,6 +52,34 @@ namespace Socks5_Proxy
         static void Main(string[] args)
         {
             Console.WriteLine(Properties.Resources.welcome);
+
+            //lets load the XML settings file.
+            if (System.IO.File.Exists("settings.xml"))
+            {
+                try {
+                    //we're going to load some values from settings.xml
+                    XmlDocument xml = new XmlDocument();
+                    xml.Load("settings.xml");
+                    port = Convert.ToUInt16(xml.GetElementsByTagName("port")[0].InnerText);
+                    listen_ip = xml.GetElementsByTagName("listen")[0].InnerText;
+                    host_deny_filter = new Regex(xml.GetElementsByTagName("hosts_deny")[0].InnerText);
+                    host_allow_filter = new Regex(xml.GetElementsByTagName("hosts_allow")[0].InnerText);
+                    client_filter = new Regex(xml.GetElementsByTagName("client_filter")[0].InnerText);
+                    throttle = Convert.ToInt32(xml.GetElementsByTagName("throttle")[0].InnerText);
+                    max_idle = Convert.ToInt32(xml.GetElementsByTagName("max_idle")[0].InnerText);
+                    max_threads = Convert.ToInt32(xml.GetElementsByTagName("max_threads")[0].InnerText);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("There was an error parsing all the values in the settings.xml file. Is the file a valid XML file?");
+                }
+
+            }
+            else
+            {
+                Console.WriteLine("No settings.xml file was located. Using default settings...");
+            }
+
             try
             {
                 Reset_Listener();
@@ -51,7 +93,20 @@ namespace Socks5_Proxy
 
         static void Reset_Listener()
         {
-            TcpListener sock = new TcpListener(IPAddress.Any, port);
+
+            //we need to find the right IP to listen on
+            IPAddress ip_to_use = IPAddress.Any;
+            IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName()); ;
+            foreach (IPAddress ip in host.AddressList)
+            {
+                //if we find the requested ip then we use it, otherwise we use IPAddress.any
+                if (ip.ToString() == listen_ip) ip_to_use = ip;
+            }
+
+            TcpListener sock = new TcpListener(ip_to_use, port);
+
+            Console.WriteLine("Socks5 server is running on " + ip_to_use.ToString() + ":" + port);
+
             while (true)
             {
                 sock.Start();
@@ -59,7 +114,7 @@ namespace Socks5_Proxy
                 new_client = sock.AcceptTcpClient();
 
 
-                while (threads.Count() > 99)
+                while (threads.Count() > max_threads)
                 {
                     //if we have 100 socket threads running then do a simple sleep loop
                     //until some theads close, then we continue accpeting connections
@@ -283,62 +338,80 @@ namespace Socks5_Proxy
         {
             //this method sends data back and forth between remote and local connections
 
-            //set both clients to NoDelay, otherwise we'll be stuck waiting for data from one client while the other wants to send
-            local_client.NoDelay = true;
-            remote_client.NoDelay = true;
+            try {
+                //set both clients to NoDelay, otherwise we'll be stuck waiting for data from one client while the other wants to send
+                local_client.NoDelay = true;
+                remote_client.NoDelay = true;
 
-            //amount of miliseconds to limit data by
-            int throttle = 5;
+                //amount of time no data has been transferred
+                int idle_count = 0;
+                //amount of bytes thats have been transferred in total.
+                int byte_count = 0;
 
-            //amount of time no data has been transferred
-            int idle_count = 0;
-            //amount of bytes thats have been transferred in total.
-            int byte_count = 0;
+                while (local_client.Connected && remote_client.Connected)
+                {
 
-            while(local_client.Connected && remote_client.Connected)
+                    //we'll try to read 1 KiB of data each time
+                    Byte[] data = new byte[1024];
+                    //this will be the amount of data we /actually/ read
+                    int data_read = 0;
+
+
+                    if (local.DataAvailable)
+                    {
+
+                        data_read = local.Read(data, 0, data.Count());
+                        remote.Write(data, 0, data_read);
+                        //since there was data to send we can reset the idle counter
+                        idle_count = 0;
+                        //increment the byte_count by the amount of bytes read
+                        byte_count += data_read;
+                    }
+                    else if (remote.DataAvailable)
+                    {
+                        data_read = remote.Read(data, 0, data.Count());
+                        local.Write(data, 0, data_read);
+                        //since there was data to send we can reset the idle counter
+                        idle_count = 0;
+                        //increment the byte_count by the amount of bytes read
+                        byte_count += data_read;
+                    }
+                    else
+                    {
+                        //after idle time has reached 100 (roughly 10 seconds) we close the socket
+                        if (idle_count > max_idle) break;
+                        idle_count++;
+                        //sleep for 100 miliseconds minues the throttle speed
+                        Thread.Sleep(100 - throttle);
+
+                        if (idle_count == 5 || idle_count==50)
+                        {
+                            if (local_client.Client.Poll(0, SelectMode.SelectRead))
+                            {
+                                byte[] buff = new byte[1];
+                                if (local_client.Client.Receive(buff, SocketFlags.Peek) == 0)
+                                {
+                                    break;
+                                }
+
+                            }
+                        }
+
+
+                    }
+                    //throttle speed of data 
+                    Thread.Sleep(throttle);
+                }
+            }
+            catch (Exception e)
             {
-                
-                //we'll try to read 1 KiB of data each time
-                Byte[] data = new byte[1024];
-                //this will be the amount of data we /actually/ read
-                int data_read = 0;
-
-
-                if (local.DataAvailable)
-                {
-
-                    data_read = local.Read(data, 0, data.Count());
-                    remote.Write(data, 0, data_read);
-                    //since there was data to send we can reset the idle counter
-                    idle_count = 0;
-                    //increment the byte_count by the amount of bytes read
-                    byte_count += data_read;
-                }
-                else if(remote.DataAvailable)
-                {
-                    data_read = remote.Read(data, 0, data.Count());
-                    local.Write(data, 0, data_read);
-                    //since there was data to send we can reset the idle counter
-                    idle_count = 0;
-                    //increment the byte_count by the amount of bytes read
-                    byte_count += data_read;
-                }
-                else
-                {
-                    //after idle time has reached 100 (roughly 10 seconds) we close the socket
-                    if (idle_count > 100) break;
-                    idle_count++;
-                    //sleep for 100 miliseconds minues the throttle speed
-                    Thread.Sleep(100-throttle);
-                }
-                //throttle speed of data 
-                Thread.Sleep(throttle);
+                Log("Error " + e.Message.ToString());
             }
         }
 
         static void Log(String text)
         {
-            //fo logging we just write to console. Do something more advanced here if you want
+            //for logging we just write to console. Do something more advanced here if you want
             Console.WriteLine(text);
 
         }

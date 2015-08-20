@@ -1,0 +1,8 @@
+C:\Users\Lue\Documents\GitHub\dirtySOCKS\bin\Release\Socks5_Proxy.exe.config
+C:\Users\Lue\Documents\GitHub\dirtySOCKS\bin\Release\Socks5_Proxy.exe
+C:\Users\Lue\Documents\GitHub\dirtySOCKS\bin\Release\Socks5_Proxy.pdb
+C:\Users\Lue\Documents\GitHub\dirtySOCKS\obj\Release\Socks5_Proxy.csprojResolveAssemblyReference.cache
+C:\Users\Lue\Documents\GitHub\dirtySOCKS\obj\Release\Socks5_Proxy.Properties.Resources.resources
+C:\Users\Lue\Documents\GitHub\dirtySOCKS\obj\Release\Socks5_Proxy.csproj.GenerateResource.Cache
+C:\Users\Lue\Documents\GitHub\dirtySOCKS\obj\Release\Socks5_Proxy.exe
+C:\Users\Lue\Documents\GitHub\dirtySOCKS\obj\Release\Socks5_Proxy.pdb

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<settings>
+	<listen>*</listen>
+	<port>1080</port>
+	<threads>100</threads>
+	<hosts_deny>^(www\.)?example.com:80$</hosts_deny>
+	<hosts_allow>^example.com:80$</hosts_allow>
+	<client_filter>^127\.0\.0\.[0-9][0-9]?[0-9]?$</client_filter>
+	<throttle>0</throttle>
+	<max_idle>100</max_idle>
+</settings>
