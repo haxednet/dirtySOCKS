@@ -1,0 +1,7 @@
+c:\users\lue\documents\visual studio 2015\Projects\Socks5_Proxy\Socks5_Proxy\bin\Debug\Socks5_Proxy.exe.config
+c:\users\lue\documents\visual studio 2015\Projects\Socks5_Proxy\Socks5_Proxy\bin\Debug\Socks5_Proxy.exe
+c:\users\lue\documents\visual studio 2015\Projects\Socks5_Proxy\Socks5_Proxy\bin\Debug\Socks5_Proxy.pdb
+c:\users\lue\documents\visual studio 2015\Projects\Socks5_Proxy\Socks5_Proxy\obj\Debug\Socks5_Proxy.exe
+c:\users\lue\documents\visual studio 2015\Projects\Socks5_Proxy\Socks5_Proxy\obj\Debug\Socks5_Proxy.pdb
+C:\Users\Lue\Documents\Visual Studio 2015\Projects\Socks5_Proxy\Socks5_Proxy\obj\Debug\Socks5_Proxy.Properties.Resources.resources
+C:\Users\Lue\Documents\Visual Studio 2015\Projects\Socks5_Proxy\Socks5_Proxy\obj\Debug\Socks5_Proxy.csproj.GenerateResource.Cache
